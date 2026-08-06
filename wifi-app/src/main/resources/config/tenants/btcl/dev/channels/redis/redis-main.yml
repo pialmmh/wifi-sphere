@@ -1,0 +1,10 @@
+# The one Redis this instance speaks to: gateway events in, session records +
+# shadow grants out. Localhost on the pilot (Redis is bound 127.0.0.1-only).
+redis:
+  host: 127.0.0.1
+  port: 6379
+streams:
+  gatewayEvents: wifi:evt:gateway
+  sessionRecords: wifi:session:records
+  shadowGrants: wifi:session:shadow
+positionFile: /var/lib/wifi-sphere/bridge-position

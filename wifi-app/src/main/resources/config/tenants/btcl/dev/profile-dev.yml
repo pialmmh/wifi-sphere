@@ -1,0 +1,12 @@
+# btcl / dev — the pilot gateway (wifi-gw1). Deployed boxes override this tree
+# via -Dseed.config.dir=/etc/wifi-sphere (file-by-file), never by rebuilding.
+wifi:
+  session:
+    initTimeoutSec: 120        # seen but never probed -> REJECTED (silent)
+    signalingTimeoutSec: 300   # probed but never authed -> REJECTED (noAuth)
+    probingChildSec: 280       # child window, strictly below signalingTimeoutSec
+    sessionMaxSec: 86400       # 24h hard cap on an authenticated session
+  registry:
+    poolSize: 512
+    maxConcurrent: 5000
+    threads: 2
