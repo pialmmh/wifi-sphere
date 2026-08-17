@@ -2,6 +2,7 @@ package com.telcobright.wifisphere.auth;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.telcobright.seed.config.TenantConfigRegistry;
+import com.telcobright.wifisphere.vpp.SiteReconciler;
 import com.telcobright.wifisphere.vpp.VppApplier;
 import io.quarkus.runtime.ShutdownEvent;
 import io.quarkus.runtime.StartupEvent;
@@ -38,6 +39,8 @@ public class AuthPlaneProducer {
 
     private MacAuthStore store;
     private VppApplier applier;
+    private SiteReconciler reconciler;
+    private VppApplier.CommandRunner runner;
     private ScheduledExecutorService sweeper;
 
     @Produces
@@ -48,12 +51,16 @@ public class AuthPlaneProducer {
     @Singleton
     public VppApplier applier() { return applier; }
 
+    @Produces
+    @Singleton
+    public SiteReconciler reconciler() { return reconciler; }
+
     void onStart(@Observes StartupEvent ev) {
         Map<String, Object> cfg = section("wifi.applier");
         boolean enabled = cfg != null && Boolean.TRUE.equals(cfg.get("enabled"));
         String vppctl = str(cfg, "vppctl", "vppctl -s /run/vpp/cli.sock");
         String[] base = vppctl.trim().split("\\s+");
-        applier = new VppApplier(enabled, args -> {
+        runner = args -> {
             String[] cmd = new String[base.length + args.length];
             System.arraycopy(base, 0, cmd, 0, base.length);
             System.arraycopy(args, 0, cmd, base.length, args.length);
@@ -62,7 +69,9 @@ public class AuthPlaneProducer {
             if (!p.waitFor(5, TimeUnit.SECONDS) || p.exitValue() != 0)
                 throw new IllegalStateException("vppctl failed: " + out.strip());
             return out;
-        });
+        };
+        applier = new VppApplier(enabled, runner);
+        reconciler = new SiteReconciler(str(cfg, "accessInterface", "access"), enabled, runner);
         store = new MacAuthStore(str(cfg, "stateFile", "/var/lib/wifi-sphere/mac-auth.json"),
                 new ObjectMapper(), applier);
 
