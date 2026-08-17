@@ -34,6 +34,7 @@ final class ContextLoader {
             .connectTimeout(Duration.ofSeconds(5)).build();
 
     private volatile JsonNode doc;
+    private volatile ContextSnapshot snapshot;
     private volatile long version = 0;
     private volatile String source = "none";
 
@@ -44,6 +45,7 @@ final class ContextLoader {
         this.cacheFile = Path.of(cacheFile);
         this.mapper = mapper;
         this.doc = mapper.createObjectNode();
+        this.snapshot = ContextSnapshot.from(this.doc);
     }
 
     synchronized void load() {
@@ -55,6 +57,7 @@ final class ContextLoader {
                 writeCache(fresh);
                 if (v != version) log.info("context updated: version {} -> {} (fetched)", version, v);
                 doc = fresh;
+                snapshot = ContextSnapshot.from(fresh);
                 version = v;
                 source = "fetched";
                 return;
@@ -81,6 +84,7 @@ final class ContextLoader {
             if (Files.exists(cacheFile)) {
                 JsonNode cached = mapper.readTree(Files.readString(cacheFile));
                 doc = cached;
+                snapshot = ContextSnapshot.from(cached);
                 version = cached.path("version").asLong(0);
                 source = "cache";
                 log.info("context served from last-good cache: version {}", version);
@@ -102,6 +106,7 @@ final class ContextLoader {
     }
 
     JsonNode document() { return doc; }
+    ContextSnapshot snapshot() { return snapshot; }
     long version() { return version; }
     String gatewayId() { return gatewayId; }
     String source() { return source; }

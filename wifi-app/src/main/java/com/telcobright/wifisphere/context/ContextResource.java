@@ -35,4 +35,14 @@ public class ContextResource {
     public JsonNode doc() {
         return cache.document();
     }
+
+    /** The join VPP cannot do: resolve a VLAN id to its site (+zone). 404 = unknown vlan. */
+    @GET
+    @Path("/site-by-vlan/{vlanId}")
+    public jakarta.ws.rs.core.Response siteByVlan(@jakarta.ws.rs.PathParam("vlanId") int vlanId) {
+        ContextSnapshot.SiteCtx s = cache.snapshot().siteByVlan(vlanId);
+        return s == null
+                ? jakarta.ws.rs.core.Response.status(404).entity(Map.of("error", "no site for vlan " + vlanId)).build()
+                : jakarta.ws.rs.core.Response.ok(s).build();
+    }
 }

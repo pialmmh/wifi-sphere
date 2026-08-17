@@ -90,6 +90,9 @@ public class ContextCache {
 
     public JsonNode document() { return loader.document(); }
 
+    /** The immutable typed view (lifecycle A): vlanTable, sites, zones, tenant. */
+    public ContextSnapshot snapshot() { return loader.snapshot(); }
+
     public long version() { return loader.version(); }
 
     public String gatewayId() { return loader.gatewayId(); }
