@@ -41,6 +41,19 @@
         </dependency>
         <dependency>
             <groupId>com.telcobright</groupId>
+            <artifactId>seed-config-client</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-rest-jackson</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-junit5</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.telcobright</groupId>
             <artifactId>statewalk-v2-wifi</artifactId>
             <version>1.0-SNAPSHOT</version>
         </dependency>

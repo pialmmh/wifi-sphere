@@ -1,0 +1,6 @@
+# The config doorbell rides the EXISTING BTCL Kafka cluster (owner ruling 2026-08-18) —
+# the same brokers the pay-watcher consumes wifi_payment from. Payload-less events only.
+enabled: false                   # dev default off; prod flips on
+brokers: "10.10.199.20:9092,10.10.197.20:9092,10.10.198.20:9092"
+topic: "wifi_config_doorbell_dev"
+debounceMs: 3000

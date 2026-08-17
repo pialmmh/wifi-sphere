@@ -10,3 +10,9 @@ wifi:
     poolSize: 512
     maxConcurrent: 5000
     threads: 2
+  contextPlane:
+    gatewayId: wifi-gw1          # dev = the pilot box; prod profile says bras-1
+    configUrl: ""                # orchestrix gateway-config endpoint; "" = cache/offline mode
+    tokenFile: "/etc/wifi-sphere/config-token"
+    cacheFile: "/var/lib/wifi-sphere/desired-state.json"
+    pollSeconds: 300             # reliable floor under the doorbell
