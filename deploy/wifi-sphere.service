@@ -1,0 +1,16 @@
+# Deployed at /etc/systemd/system/wifi-sphere.service on the gateway VM.
+# Binds the appns-facing veth host leg so BOTH FreeRADIUS (host) and the
+# authorizer (appns) reach it; never 0.0.0.0 (house bind rule).
+[Unit]
+Description=wifi-sphere — gateway context plane (config cache, RADIUS brain, session context)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/opt/java/jdk-21.0.12+8/bin/java -Dseed.config.dir=/etc/wifi-sphere/config -Dquarkus.http.host=10.10.185.1 -Dquarkus.http.port=7096 -jar /home/telcobright/wifi-sphere/quarkus-app/quarkus-run.jar
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
