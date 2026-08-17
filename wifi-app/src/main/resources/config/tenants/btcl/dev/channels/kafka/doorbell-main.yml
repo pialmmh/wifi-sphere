@@ -2,5 +2,5 @@
 # the same brokers the pay-watcher consumes wifi_payment from. Payload-less events only.
 enabled: false                   # dev default off; prod flips on
 brokers: "10.10.199.20:9092,10.10.197.20:9092,10.10.198.20:9092"
-topic: "wifi_config_doorbell_dev"
+topic: "wifi_config_doorbell_btcl"   # topic suffix = TENANT name (owner ruling: multi-tenant)
 debounceMs: 3000
