@@ -16,3 +16,9 @@ wifi:
     tokenFile: "/etc/wifi-sphere/config-token"
     cacheFile: "/var/lib/wifi-sphere/desired-state.json"
     pollSeconds: 300             # reliable floor under the doorbell
+  applier:
+    enabled: false               # SHADOW: the pilot authorizer still owns the box; flip at cutover
+    vppctl: "vppctl -s /run/vpp/cli.sock"
+    stateFile: "/var/lib/wifi-sphere/mac-auth.json"
+    expirySweepSeconds: 5
+    driftSweepSeconds: 60
