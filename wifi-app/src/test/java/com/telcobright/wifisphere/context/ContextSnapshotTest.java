@@ -43,8 +43,8 @@ class ContextSnapshotTest {
         assertEquals("10.193.96.10", ctx.siteByVlan(101).dhcp().rangeStart());
         assertNull(ctx.siteByVlan(102).dhcp());
 
-        // zone view groups by division/zilla/area
-        assertTrue(ctx.zones().get("dhaka/dhaka/ramna").contains("ramna"));
+        // zone view: zoneKey -> siteId -> SiteCtx, O(1) both hops
+        assertEquals("10.193.128.0/20", ctx.zones().get("dhaka/dhaka/ramna").get("ramna").subnet());
     }
 
     @Test

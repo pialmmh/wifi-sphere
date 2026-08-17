@@ -37,12 +37,12 @@ public final class ContextSnapshot {
     private final String tenantName;
     private final Map<Integer, SiteCtx> vlanTable;
     private final Map<String, SiteCtx> sites;
-    private final Map<String, List<String>> zones;   // "division/zilla/area" -> [siteId]
+    private final Map<String, Map<String, SiteCtx>> zones;   // "division/zilla/area" -> siteId -> SiteCtx (all maps: O(1) admission-path reads)
     private final JsonNode gateway;                  // throttle/boot/interfaces, raw doc section
 
     private ContextSnapshot(long version, int tenantId, String tenantName,
                             Map<Integer, SiteCtx> vlanTable, Map<String, SiteCtx> sites,
-                            Map<String, List<String>> zones, JsonNode gateway) {
+                            Map<String, Map<String, SiteCtx>> zones, JsonNode gateway) {
         this.version = version;
         this.tenantId = tenantId;
         this.tenantName = tenantName;
@@ -63,7 +63,7 @@ public final class ContextSnapshot {
 
         Map<Integer, SiteCtx> vlanTable = new HashMap<>();
         Map<String, SiteCtx> sites = new HashMap<>();
-        Map<String, List<String>> zones = new HashMap<>();
+        Map<String, Map<String, SiteCtx>> zones = new HashMap<>();
 
         for (JsonNode s : doc.path("sites")) {
             JsonNode z = s.path("zone");
@@ -85,7 +85,7 @@ public final class ContextSnapshot {
 
             sites.put(site.siteId(), site);
             if (vlanId != null) vlanTable.put(vlanId, site);
-            zones.computeIfAbsent(zone.key(), k -> new ArrayList<>()).add(site.siteId());
+            zones.computeIfAbsent(zone.key(), k -> new HashMap<>()).put(site.siteId(), site);
         }
 
         return new ContextSnapshot(version, tenantId, tenantName, vlanTable, sites, zones,
@@ -102,6 +102,6 @@ public final class ContextSnapshot {
     public String tenantName() { return tenantName; }
     public Map<Integer, SiteCtx> vlanTable() { return vlanTable; }
     public Map<String, SiteCtx> sites() { return sites; }
-    public Map<String, List<String>> zones() { return zones; }
+    public Map<String, Map<String, SiteCtx>> zones() { return zones; }
     public JsonNode gateway() { return gateway; }
 }
