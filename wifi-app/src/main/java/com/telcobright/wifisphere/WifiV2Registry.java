@@ -2,12 +2,15 @@ package com.telcobright.wifisphere;
 
 import com.telcobright.routesphere.wifimachine.v2.channel.GatewayEventBridge;
 import com.telcobright.routesphere.wifimachine.v2.channel.RedisPorts;
-import com.telcobright.routesphere.wifimachine.v2.supervisor.WifiSessionSupervisor;
-import com.telcobright.routesphere.wifimachine.v2.supervisor.WifiSignaling;
-import com.telcobright.routesphere.wifimachine.v2.supervisor.WifiTimeouts;
+import com.telcobright.routesphere.wifimachine.v2.glue.WifiEngine;
+import com.telcobright.routesphere.wifimachine.v2.policy.SessionPolicy;
+import com.telcobright.routesphere.wifimachine.v2.port.LivenessSnapshotPort;
+import com.telcobright.routesphere.wifimachine.v2.port.LoginStorePort;
+import com.telcobright.routesphere.wifimachine.v2.port.QuotaRebindPort;
+import com.telcobright.routesphere.wifimachine.v2.port.RadiusAccountingPort;
+import com.telcobright.routesphere.wifimachine.v2.supervisor.WifiSupervisorContext;
 import com.telcobright.seed.config.TenantConfigRegistry;
 import com.telcobright.seed.config.TenantProfile;
-import com.telcobright.statewalk.v2.flat.Registry;
 import io.quarkus.runtime.ShutdownEvent;
 import io.quarkus.runtime.StartupEvent;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -37,7 +40,7 @@ public class WifiV2Registry {
     @Inject
     TenantConfigRegistry config;
 
-    private volatile Registry registry;
+    private volatile WifiEngine engine;
     private volatile GatewayEventBridge bridge;
     private volatile Thread bridgeThread;
 
@@ -47,7 +50,7 @@ public class WifiV2Registry {
             return;
         }
         TenantProfile t = config.active();
-        WifiTimeouts timeouts = timeoutsFrom(t);
+        SessionPolicy policy = policyFrom(t);
         Map<String, Object> redisCfg = t.channel("redis", "redis-main");
         String host = str(redisCfg, "redis.host", "127.0.0.1");
         int port = intOf(redisCfg, "redis.port", 6379);
@@ -57,20 +60,31 @@ public class WifiV2Registry {
         Path positionFile = Path.of(str(redisCfg, "positionFile", "/var/lib/wifi-sphere/bridge-position"));
 
         JedisPooled jedis = new JedisPooled(host, port);
-        registry = Registry.builder("wifi-v2")
-            .supervisor("WifiSessionSupervisor",
-                () -> new WifiSessionSupervisor(
-                    RedisPorts.shadowMacTable(jedis, shadowStream),
-                    RedisPorts.sessionRecords(jedis, recStream),
-                    timeouts),
-                intOf(t.profile(), "wifi.registry.poolSize", 512))
-            .child("WifiSignaling", () -> new WifiSignaling(timeouts),
-                intOf(t.profile(), "wifi.registry.poolSize", 512))
-            .threads(intOf(t.profile(), "wifi.registry.threads", 2))
-            .maxConcurrent(intOf(t.profile(), "wifi.registry.maxConcurrent", 5000))
-            .build();
+        RadiusAccountingPort noRadius = new RadiusAccountingPort() {
+            @Override public void acctStart(WifiSupervisorContext ctx) { /* shadow */ }
+            @Override public void acctStop(WifiSupervisorContext ctx, String cause) { /* shadow */ }
+        };
+        LivenessSnapshotPort staleAlways = () ->
+            new LivenessSnapshotPort.LivenessSnapshot(0, Map.of()); // stale => never kills
+        LoginStorePort noLogin = new LoginStorePort() {
+            @Override public String lookup(String mac) { return null; }
+            @Override public void bind(String mac, String msisdn) { /* shadow */ }
+        };
+        engine = new WifiEngine(
+            new WifiEngine.Ports(
+                RedisPorts.shadowGate(jedis, shadowStream),
+                noRadius,
+                RedisPorts.sdrRecords(jedis, recStream),
+                staleAlways,
+                noLogin,
+                vlan -> null,
+                QuotaRebindPort.allowAll()),
+            new java.util.concurrent.atomic.AtomicReference<>(policy),
+            intOf(t.profile(), "wifi.registry.poolSize", 512),
+            intOf(t.profile(), "wifi.registry.threads", 2),
+            intOf(t.profile(), "wifi.registry.maxConcurrent", 5000));
 
-        bridge = new GatewayEventBridge(registry, host, port, evtStream, positionFile);
+        bridge = new GatewayEventBridge(engine, host, port, evtStream, positionFile);
         bridgeThread = new Thread(bridge::run, "wifi-v2-bridge");
         bridgeThread.setDaemon(true);
         bridgeThread.start();
@@ -80,19 +94,36 @@ public class WifiV2Registry {
 
     void onStop(@Observes ShutdownEvent ev) {
         if (bridge != null) bridge.stop();
-        if (registry != null) registry.shutdown();
+        if (engine != null) engine.close();
     }
 
-    public boolean isActive() { return enabled && registry != null; }
+    public boolean isActive() { return enabled && engine != null; }
 
     // ── small config readers (dotted paths over the yaml maps) ──────────
 
-    private static WifiTimeouts timeoutsFrom(TenantProfile t) {
-        return new WifiTimeouts(
-            intOf(t.profile(), "wifi.session.initTimeoutSec", 120),
-            intOf(t.profile(), "wifi.session.signalingTimeoutSec", 300),
-            intOf(t.profile(), "wifi.session.probingChildSec", 280),
-            intOf(t.profile(), "wifi.session.sessionMaxSec", 86400));
+    /** The seed-profile overrides ride on the ratified defaults (full set = the runtime doc's session block). */
+    private static SessionPolicy policyFrom(TenantProfile t) {
+        SessionPolicy d = SessionPolicy.defaults();
+        return new SessionPolicy(
+            intOf(t.profile(), "wifi.session.maxDevicesPerUser", d.maxDevicesPerUser()),
+            intOf(t.profile(), "wifi.session.maxDevicesPerUserPerZone", d.maxDevicesPerUserPerZone()),
+            str(t.profile(), "wifi.session.zoneScope", d.zoneScope()),
+            intOf(t.profile(), "wifi.session.initTimeoutSec", d.timeoutInitSec()),
+            intOf(t.profile(), "wifi.session.captiveTimeoutSec", d.timeoutCaptiveSec()),
+            intOf(t.profile(), "wifi.session.otpTimeoutSec", d.timeoutOtpSec()),
+            intOf(t.profile(), "wifi.session.paymentTimeoutSec", d.timeoutPaymentSec()),
+            intOf(t.profile(), "wifi.session.establishedMaxSec", d.establishedMaxSec()),
+            intOf(t.profile(), "wifi.session.establishedIdleSec", d.establishedIdleSec()),
+            str(t.profile(), "wifi.session.renewMode", d.renewMode()),
+            intOf(t.profile(), "wifi.session.expiringGraceSec", d.expiringGraceSec()),
+            intOf(t.profile(), "wifi.session.terminatedLingerSec", d.terminatedLingerSec()),
+            intOf(t.profile(), "wifi.session.userDormantEvictSec", d.userDormantEvictSec()),
+            intOf(t.profile(), "wifi.session.radiusInterimSec", d.radiusInterimSec()),
+            d.sdrPartialAtCap(),
+            d.sdrRetentionDays(),
+            d.siglogRetentionDays(),
+            d.siglogDebug(),
+            intOf(t.profile(), "wifi.session.livenessStaleSec", d.livenessStaleSec()));
     }
 
     @SuppressWarnings("unchecked")
