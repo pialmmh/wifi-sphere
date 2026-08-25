@@ -7,7 +7,6 @@ import com.telcobright.routesphere.wifimachine.v2.policy.SessionPolicy;
 import com.telcobright.routesphere.wifimachine.v2.port.GatePort;
 import com.telcobright.routesphere.wifimachine.v2.port.LivenessSnapshotPort;
 import com.telcobright.routesphere.wifimachine.v2.port.LoginStorePort;
-import com.telcobright.routesphere.wifimachine.v2.port.QuotaRebindPort;
 import com.telcobright.routesphere.wifimachine.v2.port.RadiusAccountingPort;
 import com.telcobright.routesphere.wifimachine.v2.port.SdrPort;
 import com.telcobright.routesphere.wifimachine.v2.port.WifiSdrRecord;
@@ -89,7 +88,7 @@ class WifiEngineFlowTest {
         login = new FakeLogin();
         ZoneResolverPort zones = vlan -> new ZoneResolverPort.SiteZone("moghbazar", "dhaka-central");
         engine = new WifiEngine(
-            new WifiEngine.Ports(gate, radius, sdr, liveness, login, zones, QuotaRebindPort.allowAll()),
+            new WifiEngine.Ports(gate, radius, sdr, liveness, login, zones, null /* REAL base rebind */),
             new AtomicReference<>(FAST), 64, 2, 1000);
     }
 

@@ -4,7 +4,6 @@ import com.telcobright.routesphere.wifimachine.v2.glue.WifiEngine;
 import com.telcobright.routesphere.wifimachine.v2.policy.SessionPolicy;
 import com.telcobright.routesphere.wifimachine.v2.port.LivenessSnapshotPort;
 import com.telcobright.routesphere.wifimachine.v2.port.LoginStorePort;
-import com.telcobright.routesphere.wifimachine.v2.port.QuotaRebindPort;
 import com.telcobright.routesphere.wifimachine.v2.port.RadiusAccountingPort;
 import com.telcobright.routesphere.wifimachine.v2.supervisor.WifiSupervisorContext;
 import org.slf4j.Logger;
@@ -62,7 +61,7 @@ public final class WifiSessionRunner {
                 staleAlways,
                 noLogin,
                 vlan -> null,
-                QuotaRebindPort.allowAll()),
+                null), // null = the REAL registry-backed quota rebind
             new AtomicReference<>(SessionPolicy.defaults()),
             poolSize, threads, maxConcurrent);
         LOG.info("[WIFI-V2] engine READY (pool={}, maxConcurrent={}, SHADOW mode)", poolSize, maxConcurrent);

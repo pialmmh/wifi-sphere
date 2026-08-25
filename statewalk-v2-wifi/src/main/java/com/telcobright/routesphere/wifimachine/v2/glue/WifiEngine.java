@@ -21,6 +21,7 @@ import com.telcobright.statewalk.v2.flat.Registry;
 import com.telcobright.statewalk.v2.registry.api.DispatchResult;
 import com.telcobright.statewalk.v2.registry.api.QuotaKeys;
 import com.telcobright.statewalk.v2.registry.api.QuotaLimits;
+import com.telcobright.statewalk.v2.registry.api.RejectCause;
 import com.telcobright.statewalk.v2.registry.consumes.StatemachineEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,7 +47,11 @@ public final class WifiEngine implements AutoCloseable {
 
     private static final Logger LOG = LoggerFactory.getLogger(WifiEngine.class);
 
-    /** Everything the machines need injected — build one, hand it in. */
+    /**
+     * Everything the machines need injected — build one, hand it in.
+     * {@code quotaRebind} null = the REAL registry-backed rebind (the statewalk
+     * base extension); non-null overrides it (test fakes, deny simulations).
+     */
     public record Ports(GatePort gate,
                         RadiusAccountingPort radius,
                         SdrPort sdr,
@@ -229,19 +234,7 @@ public final class WifiEngine implements AutoCloseable {
         SessionPolicy p = policyRef.get();
 
         Set<String> owned = macsByUser.getOrDefault(user, Set.of());
-        boolean alreadyMine = owned.contains(norm);
-        if (!alreadyMine && owned.size() >= p.maxDevicesPerUser()) {
-            return GrantResult.denied("device-limit", new ArrayList<>(owned));
-        }
-        if (!alreadyMine && p.maxDevicesPerUserPerZone() > 0 && zone != null) {
-            long inZone = owned.stream()
-                .map(metaByMac::get)
-                .filter(m -> m != null && zone.equals(m.zone()))
-                .count();
-            if (inZone >= p.maxDevicesPerUserPerZone()) {
-                return GrantResult.denied("zone-device-limit", new ArrayList<>(owned));
-            }
-        }
+        // step 1 — the zone-scope SET rule (counting quotas cannot express it)
         if ("single_zone".equals(p.zoneScope()) && zone != null) {
             boolean otherZoneLive = owned.stream()
                 .map(metaByMac::get)
@@ -249,12 +242,32 @@ public final class WifiEngine implements AutoCloseable {
                 .anyMatch(m -> !zone.equals(m.zone()));
             if (otherZoneLive) return GrantResult.denied("zone-scope", new ArrayList<>(owned));
         }
-        String rebindReject = ports.quotaRebind().rebind(id, user, user + "@" + zone);
+        // step 2 — the COUNTS, enforced by the base QuotaController (both
+        // dimensions in one atomic decision; idempotent for a top-up)
+        String rebindReject = rebindPort().rebind(id, user, user + "@" + zone);
         if (rebindReject != null) return GrantResult.denied(rebindReject, new ArrayList<>(owned));
 
         ports.loginStore().bind(norm, user);
         deliver(id, norm, new WifiEvents.GrantApproved(norm, user, minutes, volumeBytes, purchaseId));
         return GrantResult.ok();
+    }
+
+    /** Test override, or the REAL thing: the statewalk base extension rebindQuotaKeys. */
+    private QuotaRebindPort rebindPort() {
+        if (ports.quotaRebind() != null) return ports.quotaRebind();
+        return (sessionId, msisdn, zoneRouteKey) -> {
+            try {
+                RejectCause r = sessions.rebindQuotaKeys(sessionId, QuotaKeys.of(msisdn, zoneRouteKey));
+                if (r == null) return null;
+                return switch (r) {
+                    case PARTNER_CONCURRENCY_EXCEEDED -> "device-limit";
+                    case ROUTE_CONCURRENCY_EXCEEDED -> "zone-device-limit";
+                    default -> r.name().toLowerCase();
+                };
+            } catch (IllegalStateException gone) {
+                return "no-session"; // raced a teardown — next sighting starts clean
+            }
+        };
     }
 
     // ─────────────────────────────────────────────────────────────────

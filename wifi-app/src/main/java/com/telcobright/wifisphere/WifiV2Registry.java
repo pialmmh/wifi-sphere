@@ -6,7 +6,6 @@ import com.telcobright.routesphere.wifimachine.v2.glue.WifiEngine;
 import com.telcobright.routesphere.wifimachine.v2.policy.SessionPolicy;
 import com.telcobright.routesphere.wifimachine.v2.port.LivenessSnapshotPort;
 import com.telcobright.routesphere.wifimachine.v2.port.LoginStorePort;
-import com.telcobright.routesphere.wifimachine.v2.port.QuotaRebindPort;
 import com.telcobright.routesphere.wifimachine.v2.port.RadiusAccountingPort;
 import com.telcobright.routesphere.wifimachine.v2.supervisor.WifiSupervisorContext;
 import com.telcobright.seed.config.TenantConfigRegistry;
@@ -78,7 +77,7 @@ public class WifiV2Registry {
                 staleAlways,
                 noLogin,
                 vlan -> null,
-                QuotaRebindPort.allowAll()),
+                null), // null = the REAL registry-backed quota rebind
             new java.util.concurrent.atomic.AtomicReference<>(policy),
             intOf(t.profile(), "wifi.registry.poolSize", 512),
             intOf(t.profile(), "wifi.registry.threads", 2),
