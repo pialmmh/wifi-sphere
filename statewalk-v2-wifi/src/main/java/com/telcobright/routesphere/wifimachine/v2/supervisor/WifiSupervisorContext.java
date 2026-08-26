@@ -13,6 +13,8 @@ public class WifiSupervisorContext {
     public String site;           // resolved from vlan at birth
     public String zone;           // resolved from vlan at birth
     public String msisdn;         // null while anonymous; set at birth (returning MAC) or first login
+    public String operator;       // the operator this zone belongs to (BTCL)
+    public String gwId;           // WHICH bras of the zone's pair carried this session
 
     public long firstSeenMs;
     public long establishedAtMs;  // 0 until ESTABLISHED

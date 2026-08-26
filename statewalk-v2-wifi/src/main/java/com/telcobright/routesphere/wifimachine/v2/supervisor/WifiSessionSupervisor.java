@@ -209,7 +209,7 @@ public final class WifiSessionSupervisor extends Supervisor<WifiSupervisorContex
         uc.mac = ctx.mac;
         resolver.spawnChild(USAGE_CHILD, uc);
         membership.onMembership(new MembershipChange(
-            "SEEN", ctx.sessionId, ctx.mac, ctx.msisdn, ctx.zone, "INIT"));
+            "SEEN", ctx.sessionId, ctx.mac, ctx.msisdn, ctx.zone, ctx.site, ctx.gwId, "INIT"));
     }
 
     private void recordStart(SignalingStarted started) {
@@ -238,7 +238,7 @@ public final class WifiSessionSupervisor extends Supervisor<WifiSupervisorContex
         gate.release(ctx.mac, ctx.sessionId, ctx.grantedMinutes);
         radius.acctStart(ctx);
         membership.onMembership(new MembershipChange(
-            "ESTABLISHED", ctx.sessionId, ctx.mac, ctx.msisdn, ctx.zone, "ESTABLISHED"));
+            "ESTABLISHED", ctx.sessionId, ctx.mac, ctx.msisdn, ctx.zone, ctx.site, ctx.gwId, "ESTABLISHED"));
         publishEvent(new MeterStart(ctx.establishedAtMs, ctx.grantedMinutes, ctx.volumeBudgetBytes));
     }
 
@@ -280,11 +280,11 @@ public final class WifiSessionSupervisor extends Supervisor<WifiSupervisorContex
     private void writeSdr(String outcome, boolean partial) {
         WifiSupervisorContext ctx = getContext();
         sdr.write(new WifiSdrRecord(
-            ctx.sessionId, ctx.mac, ctx.msisdn, ctx.ip, ctx.site, ctx.zone, ctx.vlan,
+            ctx.sessionId, ctx.operator, ctx.gwId, ctx.mac, ctx.msisdn, ctx.ip, ctx.site, ctx.zone, ctx.vlan,
             outcome, ctx.endReason, ctx.firstSeenMs, ctx.establishedAtMs, ctx.endedAtMs,
             ctx.activeSeconds, ctx.bytesUp, ctx.bytesDn, ctx.purchaseId, ctx.grantedMinutes,
             partial, ctx.probeCount, List.copyOf(ctx.probeLabels)));
         membership.onMembership(new MembershipChange(
-            "CLOSED", ctx.sessionId, ctx.mac, ctx.msisdn, ctx.zone, outcome));
+            "CLOSED", ctx.sessionId, ctx.mac, ctx.msisdn, ctx.zone, ctx.site, ctx.gwId, outcome));
     }
 }

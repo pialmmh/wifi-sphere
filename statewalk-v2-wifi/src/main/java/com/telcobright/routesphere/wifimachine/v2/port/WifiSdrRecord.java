@@ -10,6 +10,8 @@ import java.util.List;
  */
 public record WifiSdrRecord(
     String sessionId,
+    String operator,
+    String gwId,
     String mac,
     String msisdn,
     String ip,

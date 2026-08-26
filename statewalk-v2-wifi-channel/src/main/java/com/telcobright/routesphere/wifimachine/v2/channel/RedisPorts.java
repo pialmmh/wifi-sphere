@@ -44,6 +44,8 @@ public final class RedisPorts {
                 r.sessionId(), r.outcome(), r.releaseCause(), r.msisdn(), r.bytesUp(), r.bytesDn());
             Map<String, String> f = new LinkedHashMap<>();
             f.put("sessionId", r.sessionId());
+            f.put("operator", nz(r.operator()));
+            f.put("gw", nz(r.gwId()));
             f.put("mac", r.mac());
             f.put("msisdn", nz(r.msisdn()));
             f.put("ip", nz(r.ip()));

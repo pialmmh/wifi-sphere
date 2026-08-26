@@ -60,10 +60,15 @@ public final class WifiEngine implements AutoCloseable {
                         ZoneResolverPort zoneResolver,
                         QuotaRebindPort quotaRebind) {}
 
+    /** The deployment's place in the hierarchy: operator → zone → site; the bras SERVES the zone. */
+    public record EngineIdentity(String operator, String gwId) {}
+
     /** Read-model row per live session (display + admission reads; ONE writer = onMembership). */
-    public record SessionMeta(String sessionId, String mac, String msisdn, String zone, String state) {}
+    public record SessionMeta(String sessionId, String mac, String msisdn, String zone,
+                              String site, String gwId, String state) {}
 
     private final Ports ports;
+    private final EngineIdentity identity;
     private final AtomicReference<SessionPolicy> policyRef;
     private final Registry sessions;
     private final Registry userIndex;
@@ -78,9 +83,10 @@ public final class WifiEngine implements AutoCloseable {
     private volatile boolean livenessStarted;
     private volatile long lastStaleWarnMs;
 
-    public WifiEngine(Ports ports, AtomicReference<SessionPolicy> policyRef,
+    public WifiEngine(Ports ports, EngineIdentity identity, AtomicReference<SessionPolicy> policyRef,
                       int poolSize, int threads, int maxConcurrent) {
         this.ports = ports;
+        this.identity = identity;
         this.policyRef = policyRef;
         SessionPolicy p = policyRef.get();
 
@@ -152,6 +158,8 @@ public final class WifiEngine implements AutoCloseable {
         ctx.mac = norm;
         ctx.vlan = vlan;
         ctx.firstSeenMs = System.currentTimeMillis();
+        ctx.operator = identity.operator();
+        ctx.gwId = identity.gwId();
         ctx.msisdn = ports.loginStore().lookup(norm); // returning device binds at birth
         ZoneResolverPort.SiteZone sz = ports.zoneResolver().resolve(vlan);
         if (sz != null) {
@@ -334,7 +342,7 @@ public final class WifiEngine implements AutoCloseable {
             }
         } else {
             metaByMac.put(c.mac(),
-                new SessionMeta(c.sessionId(), c.mac(), c.msisdn(), c.zone(), c.state()));
+                new SessionMeta(c.sessionId(), c.mac(), c.msisdn(), c.zone(), c.site(), c.gwId(), c.state()));
             if (c.msisdn() != null) {
                 macsByUser.computeIfAbsent(c.msisdn(), k -> ConcurrentHashMap.newKeySet()).add(c.mac());
             }

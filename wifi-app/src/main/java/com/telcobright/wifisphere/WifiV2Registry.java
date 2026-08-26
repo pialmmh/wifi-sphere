@@ -78,6 +78,9 @@ public class WifiV2Registry {
                 noLogin,
                 vlan -> null,
                 null), // null = the REAL registry-backed quota rebind
+            new WifiEngine.EngineIdentity(
+                str(t.profile(), "wifi.operator", "btcl"),
+                str(t.profile(), "wifi.gwId", "wifi-gw1")),
             new java.util.concurrent.atomic.AtomicReference<>(policy),
             intOf(t.profile(), "wifi.registry.poolSize", 512),
             intOf(t.profile(), "wifi.registry.threads", 2),

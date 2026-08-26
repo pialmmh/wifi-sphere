@@ -89,6 +89,7 @@ class WifiEngineFlowTest {
         ZoneResolverPort zones = vlan -> new ZoneResolverPort.SiteZone("moghbazar", "dhaka-central");
         engine = new WifiEngine(
             new WifiEngine.Ports(gate, radius, sdr, liveness, login, zones, null /* REAL base rebind */),
+            new WifiEngine.EngineIdentity("btcl", "gw-test"),
             new AtomicReference<>(FAST), 64, 2, 1000);
     }
 
@@ -126,6 +127,10 @@ class WifiEngineFlowTest {
         assertEquals("TERMINATED", rec.outcome());
         assertEquals("idle", rec.releaseCause());
         assertEquals("8801711000001", rec.msisdn());
+        assertEquals("btcl", rec.operator());
+        assertEquals("gw-test", rec.gwId());
+        assertEquals("moghbazar", rec.site());
+        assertEquals("dhaka-central", rec.zone());
         assertEquals(25000, rec.bytesUp() + rec.bytesDn());
         assertTrue(await(() -> radius.stops.stream().anyMatch(s -> s.equals(mac + ":idle"))));
         assertTrue(await(() -> engine.sessionOf(mac) == null), "read-model row cleared on close");

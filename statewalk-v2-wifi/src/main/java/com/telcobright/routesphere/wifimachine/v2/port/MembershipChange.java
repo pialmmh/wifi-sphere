@@ -11,4 +11,6 @@ public record MembershipChange(
     String mac,
     String msisdn,
     String zone,
+    String site,
+    String gwId,
     String state) {}

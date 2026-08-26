@@ -62,6 +62,7 @@ public final class WifiSessionRunner {
                 noLogin,
                 vlan -> null,
                 null), // null = the REAL registry-backed quota rebind
+            new WifiEngine.EngineIdentity(env("OPERATOR", "btcl"), env("GW_ID", "wifi-gw1")),
             new AtomicReference<>(SessionPolicy.defaults()),
             poolSize, threads, maxConcurrent);
         LOG.info("[WIFI-V2] engine READY (pool={}, maxConcurrent={}, SHADOW mode)", poolSize, maxConcurrent);
